@@ -16,6 +16,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -46,6 +47,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
     Button chooseImg ,chooseVedio;
@@ -58,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
     ProgressDialog pd;
     private LocationManager lm;
     private String loc_msg="Location 1160";
-    String currentPhotoPath;
+    String currentPhotoPath,imgplace;
     private ImageLoader imageLoader=new ImageLoader(MainActivity.this);
 
     private static String[] PERMISSIONS_STORAGE = {
@@ -78,9 +80,13 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         // ask permission
         verifyStoragePermissions(MainActivity.this);
-        initView();
+        try {
+            initView();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
-    public void initView(){
+    public void initView() throws IOException {
 
         lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         locationUpdate();
@@ -233,12 +239,12 @@ public class MainActivity extends AppCompatActivity {
 
     private File createImageFile() {
         // Create an image file name
-        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMdd").format(new Date());
         String imageFileName = "JPEG_" + timeStamp;
         File storageDir = new File(Environment.getExternalStorageDirectory(), "AAAAA/"+loc_msg);
         if (!storageDir.exists())
             storageDir.mkdirs();
-        File currentImageFile = new File(storageDir, imageFileName+ ".jpg");
+        File currentImageFile = new File(storageDir, imageFileName+imgplace+ ".jpg");
         if (!currentImageFile.exists()) {
             try {
                 currentImageFile.createNewFile();
@@ -253,12 +259,12 @@ public class MainActivity extends AppCompatActivity {
     private File createVedioFile() {
         Log.i("TAG", "createVedioFile: ---------1");
         // Create an image file name
-        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        @SuppressLint("SimpleDateFormat") String timeStamp = new SimpleDateFormat("yyyyMMdd").format(new Date());
         String imageFileName = "VEDIO_" + timeStamp;
         File storageDir = new File(Environment.getExternalStorageDirectory(), "AAAAA/"+loc_msg);
         if (!storageDir.exists())
             storageDir.mkdirs();
-        File currentImageFile = new File(storageDir, imageFileName+ ".mp4");
+        File currentImageFile = new File(storageDir, imageFileName+imgplace+ ".mp4");
         if (!currentImageFile.exists()) {
             try {
                 currentImageFile.createNewFile();
@@ -337,7 +343,10 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public boolean handleMessage(Message msg) {
             if (msg.what == 0x001) {
+
                 Log.i("TAG", "handleMessage: ------------------"+loc_msg);
+
+
             }
 
             return false;
@@ -348,7 +357,11 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onLocationChanged(Location location) {
             // 当GPS定位信息发生改变时，更新定位
-            updateShow(location);
+            try {
+                updateShow(location);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
@@ -370,29 +383,44 @@ public class MainActivity extends AppCompatActivity {
             }
 
             // 当GPS LocationProvider可用时，更新定位
-            updateShow(lm.getLastKnownLocation(provider));
+            try {
+                updateShow(lm.getLastKnownLocation(provider));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
         public void onProviderDisabled(String provider) {
-            updateShow(null);
+            try {
+                updateShow(null);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     };
     //定义一个更新显示的方法
-    private void updateShow(Location location) {
+    private void updateShow(Location location) throws IOException {
         if (location != null) {
             StringBuilder sb = new StringBuilder();
             sb.append("Location"+(int)location.getLongitude()+" ");
             sb.append(+(int)location.getLatitude());
 
 
-            loc_msg = sb.toString();
+            imgplace = sb.toString();
+            Geocoder gc = new Geocoder(this, Locale.getDefault());
+            String str  = String.valueOf(gc.getFromLocation(location.getLatitude(),
+                    location.getLongitude(), 1));
+
+            loc_msg =str.substring(str.indexOf("admin="),str.indexOf(",sub"));
+//            loc_msg=s.substring(s.indexOf(4),s.indexOf());
+
         } else loc_msg = "";
 
         handler.sendEmptyMessage(0x001);
     }
 
-    public void locationUpdate() {
+    public void locationUpdate() throws IOException {
 
         // 如果没权限，打开设置页面让用户自己设置
         if ( checkCallingOrSelfPermission(ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
